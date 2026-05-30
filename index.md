@@ -7,12 +7,16 @@
 # buttons
 ${widgets.commandButton("Pomodoro Clock","Floating: Pomodoro Clock")}
 
+${shell.run("git", {"diff", "--exit-code"})}
+
 ${query[[from c=command]]}
 
 ${query[[
 from c = index.tag "command"
 order by c.name
 ]]}
+
+
 
 # Recent quick notes
 *Create:* ${widgets.commandButton "Quick Note"}
