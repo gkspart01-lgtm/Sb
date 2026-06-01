@@ -16,6 +16,11 @@ from c = index.tag "command"
 order by c.name
 ]]}
 
+```space-style
+#sb-main .cm-editor {
+    font-size: 14px !important;
+}
+```
 
 
 # Recent quick notes
