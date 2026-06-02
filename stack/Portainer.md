@@ -1,6 +1,7 @@
 [[stack/Silverbullet]]
 [[stack/UptimeKuma]]
 
+/docker-vol/portainer-traefik-stack.yml
 ```yaml
 services:
   traefik:
@@ -41,7 +42,7 @@ services:
       - "traefik.http.routers.http-catchall.rule=hostregexp(`{host:.+}`)"
       - "traefik.http.routers.http-catchall.entrypoints=web"
       - "traefik.http.routers.http-catchall.middlewares=redirect-to-https"
-      - "an"
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
       - "traefik.http.middlewares.redirect-to-https.redirectscheme.permanent=true"
 
       # Dashboard
@@ -76,23 +77,4 @@ networks:
   traefik-net:
     name: traefik-net
     driver: bridge
-```
-
-
-/docker-vol/traefik/config/middlewares.yml
-```yaml
-http:
-  middlewares:
-    auth-traefik:
-      basicAuth:
-        users:
-          - "admin:$apr1$..."
-    auth-portainer:
-      basicAuth:
-        users:
-          - "admin:$apr1$..."
-    auth-user:
-      basicAuth:
-        users:
-          - "user:$apr1$..."
 ```

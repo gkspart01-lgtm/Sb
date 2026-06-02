@@ -19,7 +19,6 @@ Services:
       - traefik-net   # Traefik-Netzwerk für Routing
     restart: always
 
-  # Uptime-Kuma nutzt Tailscale als Netzwerk-Gateway
   uptime-kuma:
     image: louislam/uptime-kuma:2
     container_name: uptime-kuma
@@ -31,11 +30,9 @@ Services:
     restart: always
     security_opt:
       - no-new-privileges:true
-    # Labels werden auf den Tailscale-Container übertragen, 
-    # da dieser den Netzwerk-Stack bereitstellt
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.uptime-kuma.rule=Host(`uptime.mehrwert.icu`)"
+      - "traefik.http.routers.uptime-kuma.rule=Host(`up.mehrwert.icu`)"
       - "traefik.http.routers.uptime-kuma.entrypoints=websecure"
       - "traefik.http.routers.uptime-kuma.tls.certresolver=letsencrypt"
       - "traefik.http.services.uptime-kuma.loadbalancer.server.port=3001"
