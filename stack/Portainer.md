@@ -1,4 +1,5 @@
-[[Silverbulle]]
+[[stack/Silverbullet]]
+[[stack/UptimeKuma]]
 
 ```yaml
 services:
@@ -77,3 +78,21 @@ networks:
     driver: bridge
 ```
 
+
+/docker-vol/traefik/config/middlewares.yml
+```yaml
+http:
+  middlewares:
+    auth-traefik:
+      basicAuth:
+        users:
+          - "admin:$apr1$..."
+    auth-portainer:
+      basicAuth:
+        users:
+          - "admin:$apr1$..."
+    auth-user:
+      basicAuth:
+        users:
+          - "user:$apr1$..."
+```
