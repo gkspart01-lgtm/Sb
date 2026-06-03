@@ -1,3 +1,7 @@
-.silverbullet.db*
-_plug/
-p/
+*
+!.gitignore
+!public
+!Repositories
+!Library
+!CONFIG.md
+
