@@ -1,3 +1,6 @@
 *
 !.gitignore
 !public
+!Repositories
+!Library
+!CONFIG.md
