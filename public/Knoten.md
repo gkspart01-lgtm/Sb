@@ -1,0 +1,1 @@
+Knoten haben verschiedene Eigenschaften, Anwendungszwecke und Schwierigkeitsgrade.

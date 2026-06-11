@@ -1,0 +1,9 @@
+*
+!.gitignore
+!public/
+!Repositories/
+!Library/
+!public/**
+!Repositories/**
+!Library/**
+!CONFIG.md
