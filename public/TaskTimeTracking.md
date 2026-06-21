@@ -120,34 +120,5 @@ function topLogEntry()
   return "**" .. msg .. "** _(since " .. timeAgo .. ")_"
 end
 
-function logEntryButtons()
-  local text = readLog()
-  if text == "" then return "_No entries yet in TimeTrackingLog.md_" end
 
-  local entries    = parseEntries(text)
-  local cumulative = calcCumulative(entries)
-
-  local seen           = {}
-  local buttonElements = {}
-
-  for _, entry in ipairs(entries) do
-    local msg = entry.msg
-    if not seen[msg] then
-      seen[msg] = true
-      local timeStr = formatDuration(cumulative[msg] or 0)
-      local row = dom.el("div",
-        { style = "display:flex; align-items:center; gap:8px; margin-bottom:4px;" },
-        widgets.commandButton("⏱ " .. msg, "TimeTracking", msg),
-        dom.el("span",
-          { style = "color:#888; font-size:0.85em; white-space:nowrap;" },
-          timeStr
-        )
-      )
-      table.insert(buttonElements, row)
-    end
-  end
-
-  if #buttonElements == 0 then return "_No entries found_" end
-  return widget.htmlBlock(dom.div(buttonElements))
-end
 ```
