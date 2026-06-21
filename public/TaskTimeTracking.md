@@ -1,15 +1,13 @@
 TimeTracking — Log timestamped entries with a short message into [[TimeTrackingLog]].
-The top widget shows your most recent entry and how long ago it was. Below it, deduplicated buttons let you re-log any past message in one click. Use the Track New Time button (or the TimeTracking command) to add a free-text entry, and the /TimeTracking-button slash command to insert a reusable quick-log button anywhere in your space.
+The top widget shows your most recent entry and how long ago it was. Below it, deduplicated buttons let you re-log any past message in one click. Use the Track New Time button (or the TimeTracking command) to add a free-text entry, and the /TimeTrackingButton slash command to insert a reusable quick-log button anywhere in your space.
 
 ${topLogEntry()}
 
 ${logEntryButtons()}
 
-${widgets.commandButton("⏱ Track New Time", "TimeTracking")}
+${widgets.commandButton("⏱ Track New Task", "TimeTracking")}
 
 ${widgets.commandButton("System: Reload")}
-
-[[TimeTrackingLog]]
 
 ```space-lua
 local LOG_PAGE = "TimeTrackingLog"
@@ -38,7 +36,7 @@ command.define({
 })
 
 slashCommand.define({
-  name = "TimeTracking-button",
+  name = "TimeTrackingButton",
   description = "Creates a TimeTracking button with a message",
   run = function()
     local msg = editor.prompt("Button message:")
