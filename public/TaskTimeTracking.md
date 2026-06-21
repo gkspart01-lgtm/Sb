@@ -1,5 +1,5 @@
 TaskTimeTracking — Log timestamped task entries with a short message into [[TimeTrackingLog]].
-The top widget shows your most recent entry and how long ago it was. Below it, deduplicated buttons let you re-log any past message in one click. Use the Track New Time button (or the TimeTracking command) to add a free-text entry, and the /TimeTrackingButton slash command to insert a reusable quick-log button anywhere in your space.
+The top widget shows your most recent entry and how long ago it was started. Below it, buttons let you re-log any past task in one click. Use the Track New Time button (or the TimeTracking command) to add a free-text entry, and the /TimeTrackingButton slash command to insert a reusable quick-log button anywhere in your space.
 
 ${topLogEntry()}
 
@@ -120,5 +120,34 @@ function topLogEntry()
   return "**" .. msg .. "** _(since " .. timeAgo .. ")_"
 end
 
-
+function logEntryButtons()  
+  local text = readLog()  
+  if text == "" then return "_No entries yet in TimeTrackingLog.md_" end  
+  
+  local entries    = parseEntries(text)  
+  local cumulative = calcCumulative(entries)  
+  
+  local seen           = {}  
+  local buttonElements = {}  
+  
+  for _, entry in ipairs(entries) do  
+    local msg = entry.msg  
+    if not seen[msg] then  
+      seen[msg] = true  
+      local timeStr = formatDuration(cumulative[msg] or 0)  
+      local row = dom.div {  
+        style = "display:flex; align-items:center; gap:8px; margin-bottom:4px;",  
+        widgets.commandButton("⏱ " .. msg, "TimeTracking", msg),  
+        dom.span {  
+          style = "color:#888; font-size:0.85em; white-space:nowrap;",  
+          timeStr  
+        }  
+      }  
+      table.insert(buttonElements, row)  
+    end  
+  end  
+  
+  if #buttonElements == 0 then return "_No entries found_" end  
+  return widget.htmlBlock(dom.div(buttonElements))  
+end
 ```
