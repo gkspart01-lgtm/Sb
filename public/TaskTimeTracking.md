@@ -1,4 +1,4 @@
-TimeTracking — Log timestamped entries with a short message into [[TimeTrackingLog]].
+TaskTimeTracking — Log timestamped task entries with a short message into [[TimeTrackingLog]].
 The top widget shows your most recent entry and how long ago it was. Below it, deduplicated buttons let you re-log any past message in one click. Use the Track New Time button (or the TimeTracking command) to add a free-text entry, and the /TimeTrackingButton slash command to insert a reusable quick-log button anywhere in your space.
 
 ${topLogEntry()}
@@ -19,6 +19,52 @@ end
 local function readLog()
   local ok, text = pcall(space.readPage, LOG_PAGE)
   return (ok and text) or ""
+end
+
+-- Parses all log lines into an array of { time, msg } (newest first)
+local function parseEntries(text)
+  local entries = {}
+  for line in text:gmatch("[^\n]+") do
+    local y, mo, d, h, mi, s, msg = line:match(
+      "^(%d%d%d%d)-(%d%d)-(%d%d) (%d%d):(%d%d):(%d%d) (.+)$"
+    )
+    if msg then
+      local t = os.time({
+        year = tonumber(y), month = tonumber(mo), day = tonumber(d),
+        hour = tonumber(h), min  = tonumber(mi),  sec = tonumber(s)
+      })
+      table.insert(entries, { time = t, msg = msg })
+    end
+  end
+  return entries
+end
+
+-- Returns cumulative seconds per task name.
+-- Each entry "owns" the time from its timestamp until the next (newer) entry.
+-- The most recent entry owns time from its timestamp until now.
+local function calcCumulative(entries)
+  local cumulative = {}
+  local nextTime = os.time()
+  for _, entry in ipairs(entries) do          -- entries are newest-first
+    local duration = os.difftime(nextTime, entry.time)
+    if duration > 0 then
+      cumulative[entry.msg] = (cumulative[entry.msg] or 0) + duration
+    end
+    nextTime = entry.time
+  end
+  return cumulative
+end
+
+-- Formats a duration in seconds to a readable string
+local function formatDuration(seconds)
+  if seconds < 60 then return "< 1m" end
+  local h = math.floor(seconds / 3600)
+  local m = math.floor((seconds % 3600) / 60)
+  if h > 0 then
+    return string.format("%dh %02dm", h, m)
+  else
+    return string.format("%dm", m)
+  end
 end
 
 command.define({
@@ -77,16 +123,30 @@ end
 function logEntryButtons()
   local text = readLog()
   if text == "" then return "_No entries yet in TimeTrackingLog.md_" end
-  local seen = {}
+
+  local entries    = parseEntries(text)
+  local cumulative = calcCumulative(entries)
+
+  local seen           = {}
   local buttonElements = {}
-  for line in text:gmatch("[^\n]+") do
-    local msg = line:match("^%d%d%d%d%-%d%d%-%d%d %d%d:%d%d:%d%d (.+)$")
-    if msg and not seen[msg] then
+
+  for _, entry in ipairs(entries) do
+    local msg = entry.msg
+    if not seen[msg] then
       seen[msg] = true
-      table.insert(buttonElements, widgets.commandButton("⏱ " .. msg, "TimeTracking", msg))
-      table.insert(buttonElements, dom.br())
+      local timeStr = formatDuration(cumulative[msg] or 0)
+      local row = dom.el("div",
+        { style = "display:flex; align-items:center; gap:8px; margin-bottom:4px;" },
+        widgets.commandButton("⏱ " .. msg, "TimeTracking", msg),
+        dom.el("span",
+          { style = "color:#888; font-size:0.85em; white-space:nowrap;" },
+          timeStr
+        )
+      )
+      table.insert(buttonElements, row)
     end
   end
+
   if #buttonElements == 0 then return "_No entries found_" end
   return widget.htmlBlock(dom.div(buttonElements))
 end
