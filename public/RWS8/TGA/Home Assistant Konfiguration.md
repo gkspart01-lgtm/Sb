@@ -3,6 +3,10 @@
 ## Installation
 
 https://community-scripts.org/scripts/haos-vm
+Zugang:
+ * IP 192.168.180.20
+ * Passwort: ${getSecret('rws8HaosPassword')}
+
 
 ## Reverse proxy
 

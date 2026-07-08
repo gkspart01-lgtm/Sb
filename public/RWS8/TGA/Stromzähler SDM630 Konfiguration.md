@@ -4,10 +4,10 @@ Die Stromzähler (SDM630) für die 3 WEs und Allgemeinstrom sind per RS485 via U
 
 ## Verbindung:
  - OS: Raspberry Pi OS, Debian 13 (Trixie)
- - IP-Adresse: 192.168.178.43
+ - IP-Adresse: 192.168.180.43
  - Name: PiImSchrank
  - Benutzer: schrank
- - Passwort: ${getSecret('rpizPassword')}
+ - Passwort: ${getSecret('rws8RpiZPassword')}
 
 ## mbusd
 
