@@ -1,0 +1,23 @@
+# Setup
+
+## Installation
+
+https://community-scripts.org/scripts/haos-vm
+
+## Reverse proxy
+
+```yaml
+http:
+  use_x_forwarded_for: true
+  trusted_proxies:
+    - 192.168.1.X  # Die IP-Adresse Ihres Reverse Proxys (NPM oder Traefik-VM)
+    
+```
+
+## Single sign on (SSO)
+
+https://community-scripts.org/scripts/authentik
+
+https://integrations.goauthentik.io/miscellaneous/home-assistant/
+We use https://github.com/christiaangoossens/hass-oidc-auth as oidc integration. 
+
