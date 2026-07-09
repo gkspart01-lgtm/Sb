@@ -1,7 +1,13 @@
+RandomLib — Generate random passwords with customizable length and character sets, insertable directly into your notes via command palette or the `/password` slash command.
+
 ```space-lua
+local DEFAULT_LENGTH = 16
+local DEFAULT_UPPER = true
+local DEFAULT_NUMBERS = true
+local DEFAULT_SPECIAL = true
 
 local function generatePassword(length, includeUpper, includeNumbers, includeSpecial)
-    length = length or 16
+    length = length or DEFAULT_LENGTH
     includeUpper = includeUpper ~= false
     includeNumbers = includeNumbers ~= false
     includeSpecial = includeSpecial or false
@@ -17,7 +23,7 @@ local function generatePassword(length, includeUpper, includeNumbers, includeSpe
     if includeSpecial then chars = chars .. special end
 
     local password = ""
-    math.randomseed(os.time() + math.random(1000))  -- Bessere Zufälligkeit
+    math.randomseed(os.time() + math.random(1000))  -- better randomness
 
     for i = 1, length do
         local rand = math.random(#chars)
@@ -27,17 +33,25 @@ local function generatePassword(length, includeUpper, includeNumbers, includeSpe
     return password
 end
 
--- Custom Command: /password
+-- Command palette entry
 command.define {
     name = "Generate Password",
-    key = "Ctrl-Shift-P",           -- Optional: Tastenkürzel
+    key = "Ctrl-Shift-P",           -- Optional: keyboard shortcut
     run = function()
-        -- Standard: 16 Zeichen, mit Großbuchstaben + Zahlen
-        local pw = generatePassword(16, true, true, true)
-        
+        local pw = generatePassword(DEFAULT_LENGTH, DEFAULT_UPPER, DEFAULT_NUMBERS, DEFAULT_SPECIAL)
         editor.insertAtCursor(pw)
-        editor.flashNotification("✅ Passwort generiert und eingefügt! (" .. #pw .. " Zeichen)")
+        editor.flashNotification("✅ Password generated and inserted! (" .. #pw .. " characters)")
+    end
+}
+
+-- Slash command: type /password while editing a note
+slashCommand.define {
+    name = "password",
+    description = "Insert a randomly generated password",
+    run = function()
+        local pw = generatePassword(DEFAULT_LENGTH, DEFAULT_UPPER, DEFAULT_NUMBERS, DEFAULT_SPECIAL)
+        editor.insertAtCursor(pw)
+        editor.flashNotification("✅ Password generated and inserted! (" .. #pw .. " characters)")
     end
 }
 ```
-
