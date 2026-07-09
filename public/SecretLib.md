@@ -1,10 +1,14 @@
+SecretLib — Store and retrieve secrets as YAML frontmatter on a dedicated page, keeping sensitive values out of your regular notes. Select any text and run the **Secret: Save selection as secret** command to move it into the secrets store and replace it inline with a `${getSecret('key')}` reference.
+
 ```space-lua
+local SECRET_PAGE = "secret"
+
 function getSecret(key)
-  local content = space.readPage("secret")
+  local content = space.readPage(SECRET_PAGE)
   local fm = index.extractFrontmatter(content)
   local val = fm.frontmatter[key]
   if val == nil then
-    return "⚠️ Secret '" .. key .. "' nicht gefunden"
+    return "⚠️ Secret '" .. key .. "' not found"
   end
   return val
 end
@@ -17,26 +21,25 @@ local function yamlEscape(s)
 end
 
 command.define {
-  name = "Secret: Auswahl als Secret speichern",
+  name = "Secret: Save selection as secret",
   run = function()
     local sel = editor.getSelection()
     if sel.from == sel.to then
-      editor.flashNotification("Bitte zuerst den Wert markieren", "error")
+      editor.flashNotification("Please select a value first", "error")
       return
     end
 
-    local key = editor.prompt("Name (Key) für das Secret:")
+    local key = editor.prompt("Name (key) for the secret:")
     if not key or key == "" then
-      editor.flashNotification("Abgebrochen", "error")
+      editor.flashNotification("Cancelled", "error")
       return
     end
 
     local value = editor.getText():sub(sel.from + 1, sel.to)
 
-    local pageName = "secret"
     local secrets, rest = {}, ""
-    if space.pageExists(pageName) then
-      local fm = index.extractFrontmatter(space.readPage(pageName), { removeFrontMatterSection = true })
+    if space.pageExists(SECRET_PAGE) then
+      local fm = index.extractFrontmatter(space.readPage(SECRET_PAGE), { removeFrontMatterSection = true })
       secrets = fm.frontmatter or {}
       rest = fm.text
     end
@@ -49,10 +52,10 @@ command.define {
     end
     table.insert(lines, "---\n")
 
-    space.writePage(pageName, table.concat(lines, "\n") .. rest)
+    space.writePage(SECRET_PAGE, table.concat(lines, "\n") .. rest)
 
     editor.replaceRange(sel.from, sel.to, "${getSecret('" .. key .. "')}")
-    editor.flashNotification("Secret '" .. key .. "' gespeichert")
+    editor.flashNotification("Secret '" .. key .. "' saved")
   end
 }
 ```
