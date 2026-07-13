@@ -14,8 +14,7 @@ Zugang:
 http:
   use_x_forwarded_for: true
   trusted_proxies:
-    - 192.168.1.X  # Die IP-Adresse Ihres Reverse Proxys (NPM oder Traefik-VM)
-    
+    - 192.168.180.11
 ```
 
 ## Single sign on (SSO)

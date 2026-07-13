@@ -2,6 +2,9 @@
  * Benutzer: rws8
  * Passwort: ${getSecret('rws8FritzboxPassword')}
 
+# 2FA
+ * Code: 
+
 # Einstellungen
 
 ## Netzwerk
