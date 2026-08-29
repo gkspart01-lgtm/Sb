@@ -1,21 +1,43 @@
 
 Zugang:
- * IP: 192.168.180.10
- * Benutzer: root
- * Passwort: ${getSecret('rws8ProxmoxPassword')}
+  * IP: 192.168.180.10
+  * Benutzer: root
+  * Passwort: ${getSecret('rws8ProxmoxPassword')}
+
+# Installation
+
+https://community-scripts.org/scripts/post-pve-install
 
 ## Reverse Proxy
- * IP: 192.168.180.11
- * Tailscale + Nginx Proxy Manager (NPM)
- * Installation: https://community-scripts.org/scripts/nginxproxymanager
+  * IP: 192.168.180.11
+  * Tailscale + Nginx Proxy Manager (NPM)
+  * Installation: https://community-scripts.org/scripts/nginxproxymanager
+    * 💡  PVE Version 9.2.4 (Kernel: 7.0.14-5-pve)
+    - 🖥️  Operating System: debian
+    - 🌟  Version: 13
+    - 📦  Container Type: Unprivileged
+    - 🆔  Container ID: 101
+    - 🏠  Hostname: nginxproxymanager
+    - 💾  Disk Size: 8 GB
+    - 🧠  CPU Cores: 2
+    - 🛠️  RAM Size: 2048 MiB
+    - 🌉  Bridge: vmbr0
+    - 📡  IPv4: dhcp
+    - 📡  IPv6: auto
+    - 🗂️  FUSE Support: no
+    - 📡  TUN/TAP Support: yes
+    - 📦  Nesting: Enabled
+    - 📦  Keyctl: Enabled
+    - 🎮  GPU Passthrough: no
+    - 💡  Timezone: Europe/Berlin
+    - 🔍  Verbose Mode: no
 
 ### Tailscale Installation
-Die due Erreichbarkeit von außen richten wir einen tailscale funnel ein. 
+Für die Erreichbarkeit von außen richten wir einen tailscale funnel ein. 
 
-#### 1. In den NPM-LXC-Container gehen
+#### 1. In den NPM-LXC-Container gehen, falls du noch nicht drin bist:
 ```bash
-# Falls du noch nicht drin bist:
-pct enter ID-des-NPM-Containers
+pct enter 101
 ```
 
 #### 2. Tailscale installieren (Debian/Ubuntu)
@@ -25,22 +47,42 @@ curl -fsSL https://tailscale.com/install.sh | sh
 
 #### 3. Tailscale starten & authentifizieren
 ```bash
-tailscale up --advertise-routes=10.0.0.0/8   # oder dein internes Subnetz
+tailscale up
 ```
 - Folge dem Link im Terminal und melde dich mit deinem Tailscale-Account an.
-- Aktiviere **Funnel** für den Node (im Tailscale Admin-Panel → Machine → Edit → Enable Funnel).
 
 #### 4. Tailscale Funnel konfigurieren
 Damit der Traffic auf NPM landet:
 
 ```bash
-# Beispiel: Funnel für HTTP/HTTPS auf Port 80/443
-tailscale funnel --bg --tcp=80 --tcp=443
+tailscale funnel --bg 80
 ```
 
-### Wichtige Konfigurationstipps
+- Aktiviere **Funnel** für den Node (im Tailscale Admin-Panel → Machine → Edit → Enable Funnel).
+- SSL/HTTPS läuft nun direkt über tailscale.
+- die funnel URL dann als cname Eintrag in der Domain Verwaltung eintragen.
 
-- **NPM-Ports**: Stelle sicher, dass NPM auf **alle Interfaces** (0.0.0.0) hört, nicht nur localhost.
-- **Tailscale Subnet Routes**: Wenn du andere Container/VMs erreichbar machen willst, aktiviere `--advertise-routes` und genehmige sie im Tailscale-Admin-Panel.
-- **SSL**: Du kannst Let’s Encrypt über NPM nutzen **oder** Tailscale’s MagicDNS + HTTPS (Tailscale stellt automatisch Zertifikate bereit – oft einfacher).
-- **Reihenfolge**: Starte erst Tailscale, dann NPM/OpenResty.
+## SSO / Authentifizierung
+
+https://community-scripts.org/scripts/authentik
+🧩  Using Advanced Install on node pve
+
+  💡  PVE Version 9.2.4 (Kernel: 7.0.14-5-pve)
+  🖥️    erating System: debian
+  🌟  Version: 13
+  📦  Container Type: Unprivileged
+  🆔  Container ID: 103
+  🏠  Hostname: rws8.einighof.de
+  💾  Disk Size: 16 GB
+  🧠  CPU Cores: 4
+  🛠️    M Size: 8192 MiB
+  🌉  Bridge: vmbr0
+  📡  IPv4: dhcp
+  📡  IPv6: auto
+  🗂️    SE Support: no
+  📦  Nesting: Enabled
+  📦  Keyctl: Enabled
+  🎮  GPU Passthrough: no
+  💡  Timezone: Europe/Berlin
+  🔍  Verbose Mode: no
+

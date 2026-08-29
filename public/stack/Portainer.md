@@ -1,5 +1,6 @@
 [[public/stack/Silverbullet]]
 [[public/stack/UptimeKuma]]
+[[public/stack/Frp]]
 
 /docker-vol/portainer-traefik-stack.yml
 ```yaml
@@ -7,6 +8,8 @@ services:
   traefik:
     image: traefik:v3.7
     container_name: traefik
+    environment:
+      - "IONOS_API_KEY_FILE=/run/secrets/ionos_api_key"
     command:
       # Dashboard
       - "--api.dashboard=true"
@@ -23,7 +26,8 @@ services:
       - "--entrypoints.websecure.address=:443"
 
       # Let's Encrypt
-      - "--certificatesresolvers.letsencrypt.acme.tlschallenge=true"
+      - "--certificatesresolvers.letsencrypt.acme.dnschallenge=true"
+      - "--certificatesresolvers.letsencrypt.acme.dnschallenge.provider=ionos"
       - "--certificatesresolvers.letsencrypt.acme.email=f.thomale@gmail.com"
       - "--certificatesresolvers.letsencrypt.acme.storage=/acme.json"
     ports:
@@ -35,6 +39,8 @@ services:
       - "/docker-vol/traefik/config:/config"
     networks:
       - traefik-net
+    secrets:
+      - ionos_api_key
     labels:
       - "traefik.enable=true"
 
@@ -77,6 +83,10 @@ networks:
   traefik-net:
     name: traefik-net
     driver: bridge
+
+secrets:
+  ionos_api_key:
+    file: /docker-vol/traefik/secrets/ionos_api_key
 ```
 
 /docker-vol/traefik/config/middlewares.yml
@@ -95,5 +105,10 @@ http:
       basicAuth:
         users:
           - "user:$apr1$..."
+```
+
+/docker-vol/traefik/secrets/ionos_api_key
+```
+dein_public_prefix.dein_secret_suffix
 ```
 

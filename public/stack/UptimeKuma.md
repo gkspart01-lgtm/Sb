@@ -18,6 +18,12 @@ Services:
       - internal-net  # Internes Netzwerk für Kommunikation
       - traefik-net   # Traefik-Netzwerk für Routing
     restart: always
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.uptime-kuma.rule=Host(`up.mehrwert.icu`)"
+      - "traefik.http.routers.uptime-kuma.entrypoints=websecure"
+      - "traefik.http.routers.uptime-kuma.tls.certresolver=letsencrypt"
+      - "traefik.http.services.uptime-kuma.loadbalancer.server.port=3001"
 
   uptime-kuma:
     image: louislam/uptime-kuma:2
@@ -30,12 +36,6 @@ Services:
     restart: always
     security_opt:
       - no-new-privileges:true
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.uptime-kuma.rule=Host(`up.mehrwert.icu`)"
-      - "traefik.http.routers.uptime-kuma.entrypoints=websecure"
-      - "traefik.http.routers.uptime-kuma.tls.certresolver=letsencrypt"
-      - "traefik.http.services.uptime-kuma.loadbalancer.server.port=3001"
 
 networks:
   traefik-net:
