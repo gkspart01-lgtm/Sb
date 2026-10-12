@@ -10,6 +10,7 @@
   * http://fritz.box/#/network/settings/critical/ipv4
   - IPv4-Adresse: 192.168.178.1
   - Subnetzmaske: 255.255.248.0
+  - CIDR: /21
 
 ### DHCP
 DHCP-Server vergibt IPv4-Adressen:
