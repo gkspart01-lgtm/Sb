@@ -3,7 +3,7 @@ Der Wechselrichter (Growatt 4200TL XH) ist per RS485 via USB-Stick an einen Rasp
 # Raspberry Pi Einstellung
 
 ## Verbindung:
- - OS: Raspberry Pi OS, Debian 13 (Trixie)
+ - OS: diet Pi OS, Debian 13 (Trixie)
  - IP-Adresse: 192.168.180.44
  - Name: PiAmWR
  - Benutzer: wr
@@ -219,3 +219,10 @@ EOF
 ```
 
 `mbusd` hört jetzt auf **Port 502** (Modbus TCP).
+
+
+Es wird noch ein Service installiert und gestartet, welcher die wr Leistung automatisch an den Hausverbrauch anpasst
+Maximal 3 kw leistung des wr
+Maximal 800w Einspeisung (also Hausverbrauch+800 = wr Leistung)
+Das Script muss sich die sekündlichen Verbrauchswerte holen oder zugesendet bekommen
+Und falls 3 Sekunden lang keine Werte kommen wird die Leistung auf 800w gesetzt
