@@ -1,4 +1,4 @@
-Der Wechselrichter (Growatt 4200TL XH) ist per RS485 via USB-Stick an einen Raspberry Pi angeschlossen, um die pv Leistung auszulesen und zu begrenzen und im Netzwerk verfügbar zu machen.
+ Der Wechselrichter (Growatt 4200TL XH) ist per RS485 via USB-Stick an einen Raspberry Pi angeschlossen, um die pv Leistung auszulesen und zu begrenzen und im Netzwerk verfügbar zu machen.
 
 # Raspberry Pi Einstellung
 
