@@ -226,3 +226,201 @@ Maximal 3 kw leistung des wr
 Maximal 800w Einspeisung (also Hausverbrauch+800 = wr Leistung)
 Das Script muss sich die sekündlichen Verbrauchswerte holen oder zugesendet bekommen
 Und falls 3 Sekunden lang keine Werte kommen wird die Leistung auf 800w gesetzt
+---
+
+# Technische Beschreibung – PiAmWR (Raspberry Pi + Growatt 4200TL-XH)
+
+**Stand:** Oktober 2026  
+**Ziel:** Dynamische Leistungsbegrenzung des Growatt 4200TL-XH auf Basis des aktuellen Hausverbrauchs  
+**Hardware:** Raspberry Pi Zero W + USB-RS485-Dongle + Growatt 4200TL-XH
+
+---
+
+## 1. Übersicht der Architektur
+
+```
+[Hauszähler / SDM630]
+        │
+        │ Modbus TCP (über HA oder direkt)
+        ▼
+[Home Assistant] ──MQTT──► [PiAmWR (Raspberry Pi)]
+                                    │
+                                    │ RS485 (USB-Dongle)
+                                    ▼
+                            [Growatt 4200TL-XH]
+```
+
+**Kernfunktionen des PiAmWR:**
+- Empfang der aktuellen Hausverbrauchswerte (sekündlich)
+- Berechnung der maximal erlaubten WR-Leistung:
+  - Max. **3000 W** absolute Grenze
+  - Max. **800 W** Einspeisung → `WR-Leistung = Hausverbrauch + 800 W`
+- Schreiben der Begrenzung an den Wechselrichter
+- Failsafe: Keine gültigen Werte für **3 Sekunden** → Leistung auf **800 W** setzen
+
+---
+
+## 2. Hardware & Betriebssystem
+
+| Komponente              | Details                                      |
+|-------------------------|----------------------------------------------|
+| Raspberry Pi            | Pi Zero W                                    |
+| OS                      | DietPi (Debian 13 Trixie)                    |
+| Hostname                | `PiAmWR`                                     |
+| IP-Adresse              | `192.168.180.44`                             |
+| Benutzer                | `wr`                                         |
+| USB-RS485-Dongle        | FTDI / CH340 / CP210x (wird als `/dev/ttyUSB_RS485` gebunden) |
+
+### Wichtige Systemeinstellungen (SD-Kartenschutz)
+
+```bash
+# Swap deaktivieren
+sudo dphys-swapfile swapoff
+sudo systemctl disable dphys-swapfile
+
+# Logs bleiben im RAM (dietpi-ramlog ist bereits aktiv)
+```
+
+### UDEV-Regel für festen Gerätenamen
+
+Datei: `/etc/udev/rules.d/99-rs485.rules`
+
+```
+SUBSYSTEM=="tty", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6001", SYMLINK+="ttyUSB_RS485", MODE="0660", GROUP="dialout"
+```
+
+Nach dem Anlegen:
+```bash
+sudo udevadm control --reload-rules && sudo udevadm trigger
+```
+
+---
+
+## 3. mbusd – Modbus TCP ↔ RTU Gateway
+
+mbusd macht den Wechselrichter (oder den Zähler) im Netzwerk als Modbus-TCP-Gerät verfügbar.
+
+- **TCP-Port:** 502
+- **Serial:** `/dev/ttyUSB_RS485` @ 9600 8N1
+- **trx_control:** `addc` (bei den meisten USB-RS485-Adaptern)
+
+Der Dienst läuft als systemd-Service (`mbusd@ttyUSB_RS485.service` bzw. analog).
+
+---
+
+## 4. Leistungsbegrenzung am Growatt 4200TL-XH
+
+### Verwendetes Register
+
+| Parameter              | Wert                                      |
+|------------------------|-------------------------------------------|
+| **Register**           | **3** (Holding Register)                  |
+| **Name**               | Active Power Rate                         |
+| **Funktion**           | Maximale Ausgangsleistung in % der Nennleistung |
+| **Datentyp**           | uint16                                    |
+| **Wertebereich**       | 0–100 (255 = keine Begrenzung)           |
+| **Funktionscode**      | FC06 (Write Single Register)              |
+| **Slave-Adresse**      | 1 (Standard)                              |
+
+### Umrechnung
+
+- Nennleistung des WR: **4200 W**
+- Gewünschte Leistung in Watt → Prozent:
+
+```
+percent = round(desired_power_w / 42)          # 4200 W / 100
+percent = max(0, min(100, percent))
+```
+
+**Beispiele:**
+- 3000 W → **71 %**
+- 800 W  → **19 %**
+- 0 W    → **0 %**
+
+### Failsafe-Logik
+
+```
+IF (Zeit seit letztem gültigen Verbrauchswert > 3 Sekunden)
+    THEN setze Register 3 auf 19   # ≈ 800 W
+```
+
+---
+
+## 5. Datenfluss der Verbrauchswerte
+
+**Empfohlene Variante: MQTT**
+
+1. Home Assistant publiziert den aktuellen Hausverbrauch (in Watt) auf einem Topic, z. B.:
+   ```
+   home/power/consumption
+   ```
+   Payload: reine Zahl (z. B. `1247`)
+
+2. Der Python-Dienst auf dem Pi abonniert das Topic und speichert:
+   - letzten Wert
+   - Timestamp des letzten Updates
+
+**Alternative Möglichkeiten:**
+- Direkter HTTP-Aufruf der Home-Assistant REST-API
+- Direkter Modbus-TCP-Zugriff auf den Zähler (falls dieser bereits im Netz erreichbar ist)
+
+---
+
+## 6. Empfohlene Software-Struktur auf dem Pi
+
+```
+/opt/piamwr/
+├── power_limiter.py          # Haupt-Skript
+├── config.yaml               # Konfiguration (Topics, Limits, Serial-Port …)
+└── requirements.txt
+```
+
+**Wichtige Python-Bibliotheken:**
+- `paho-mqtt` – MQTT-Client
+- `pymodbus` – Modbus-Kommunikation
+- `pyyaml` – Konfiguration
+
+Der Dienst sollte als **systemd-Service** laufen und nach dem Boot automatisch starten.
+
+---
+
+## 7. Sicherheits- und Betriebsregeln
+
+| Regel                              | Umsetzung                                      |
+|------------------------------------|------------------------------------------------|
+| Max. WR-Leistung                   | 3000 W (hart im Code)                          |
+| Max. Einspeisung                   | 800 W (Hausverbrauch + 800)                    |
+| Kommunikationsausfall              | Nach 3 s → 800 W                               |
+| SD-Karten-Verschleiß               | Swap aus, Logs im RAM, mbusd-Loglevel = 0      |
+| Serielle Schnittstelle             | Fester Symlink `/dev/ttyUSB_RS485`             |
+
+---
+
+## 8. Nächste Schritte (Checkliste)
+
+- [ ] MQTT-Topic in Home Assistant einrichten und testen
+- [ ] Python-Skript mit Register-3-Schreiben implementieren
+- [ ] Systemd-Service anlegen und aktivieren
+- [ ] Failsafe (3-Sekunden-Timeout) testen
+- [ ] Grenzwerte 3000 W / 800 W verifizieren
+- [ ] Logging (nur journald, keine Dateien auf der SD-Karte)
+
+---
+
+## 9. Wichtige Befehle (Schnellreferenz)
+
+```bash
+# mbusd Status
+systemctl status mbusd@ttyUSB_RS485
+
+# Live-Logs des Limiters
+journalctl -u piamwr-limiter -f
+
+# Manuell Register 3 lesen
+# (mit pymodbus oder mbpoll)
+```
+
+---
+
+**Dokument erstellt für:** PiAmWR – Growatt 4200TL-XH Leistungsbegrenzung  
+**Register-Quelle:** Offizielles Growatt Modbus RTU Protocol (MIN TL-XH Serie) – Holding Register 3
