@@ -453,7 +453,18 @@ journalctl -u piamwr-limiter -f
 - Lastabfall: die Einspeisung spitzt auf die aktuelle WR-Leistung und bleibt bei −300 W/s etwa **9 s über 800 W** (≈ 5 Wh) — das ist der bewusste Preis für die langsame Abwärtsfahrt.
 - Gegenprobe „schnell und ungefiltert" (0,5 s Zyklus, kein Tiefpass, keine Totzone): deutlicher **Grenzzyklus** (Grenze pendelt 350↔600 W bzw. 1900↔3000 W) und falscher Endwert. Totzone, Tiefpass und 2-s-Zyklus sind also notwendig, nicht kosmetisch.
 
-**Voraussetzung für die Regelung:** die Messung muss jünger als 3 s sein. Deshalb werden die vier Zählerwerte
-**auf dem Pi, an dem die Zähler hängen**, summiert und dort als **virtuelle Modbus-TCP-Register** bereitgestellt
-(Summe, Einzelwerte, Alter, Gültigkeitsmaske). Der PiAmWR liest dann nur noch einen Wert — kein MQTT-Zugang
-nötig, kein Publish-Takt-Problem, und HA kann denselben virtuellen Zähler parallel lesen.
+**Messkette:** Die Regelung braucht Messwerte, die jünger als 3 s sind — HA/MQTT publiziert aber nur bei Änderung, ein unveränderter Wert gälte deshalb als „alt".
+Deshalb läuft auf dem Pi, **an dem die vier SDM630 hängen**, der Dienst `meteragg`: er liest die Zähler, addiert sie und stellt die Summe als **virtuellen Modbus-TCP-Server** bereit (Standard: Unit-ID 10, Port 502).
+
+| Unit | Adresse | Typ | Inhalt |
+|------|---------|-----|--------|
+| 10 | 0–1 | float32 | Summe aller gültigen Zähler (+ = Bezug, − = Einspeisung) |
+| 10 | 2–9 | float32 | Einzelwerte Zähler 1 bis 4 |
+| 10 | 10 | uint16 | Alter der ältesten gültigen Messung (s) |
+| 10 | 11 | uint16 | Gültigkeitsmaske, Bit *i* = Zähler *i+1* frisch |
+| 10 | 12 | uint16 | Anzahl konfigurierter Zähler |
+| 10 | 13 | uint16 | Rollzähler der gelesenen Messwerte (Diagnose) |
+
+Der PiAmWR liest genau diese Summe (`age_register: 10`, `mask_register: 11`, `required_mask: 15`) — kein MQTT-Zugang, kein Publish-Takt, eine Verbindung.
+Ist die Maske unvollständig oder die Messung zu alt, regelt er **nicht**, sondern geht in den Leerlauf (1000 W).
+Home Assistant kann dieselben Register parallel lesen (Anzeige/Historie) und muss die Rohgeräte dann nicht mehr selbst abfragen — das entlastet den RS485-Bus.
