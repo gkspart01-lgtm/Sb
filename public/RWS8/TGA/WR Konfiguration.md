@@ -424,3 +424,36 @@ journalctl -u piamwr-limiter -f
 
 **Dokument erstellt für:** PiAmWR – Growatt 4200TL-XH Leistungsbegrenzung  
 **Register-Quelle:** Offizielles Growatt Modbus RTU Protocol (MIN TL-XH Serie) – Holding Register 3
+
+
+---
+
+# Regelstrategie der Leistungsbegrenzung
+
+**Stand:** Oktober 2026 · v0.2 des Regel-Skripts (`power_limiter.py` auf dem PiAmWR)
+
+**Messgröße** ist die Summe der Netzleistungen der vier SDM630 (positiv = Bezug, negativ = Einspeisung).
+**Regelgröße** ist die Leistungsgrenze des WR (Register 3, Active Power Rate).
+
+| Parameter        | Wert                      | Zweck |
+|------------------|---------------------------|-------|
+| Ziel             | Netzleistung = −800 W     | entspricht WR-Leistung = Hausverbrauch + 800 W |
+| Slew nach oben   | **+1500 W/s**             | PV sofort selbst nutzen (Eigenverbrauch) |
+| Slew nach unten  | **−300 W/s**              | kurze Lastdips kosten keine PV-Leistung |
+| Totzone          | ±50 W                     | kein Dauer-Hunting |
+| Tiefpass         | τ = 3 s                   | dämpft Zähler-/HA-Jitter |
+| Regelzyklus      | 2 s                       | muss ≥ Verzögerung der Messkette sein |
+| Grenzen          | 0 … 3000 W                | hart |
+| Leerlauf/Failsafe| 1000 W (Register 24 %)    | Start, Stopp, Datenausfall > 3 s |
+
+**Ergebnisse der Simulation** (Lastprofil 300 → 2500 → 0 → 400 → 1500 → 900 → 300 W, Zählerverzug 1,5 s):
+
+- Kein Aufschwingen: die Grenze konvergiert (bei 300 W Verbrauch grenzt sie auf ~1040 W → 740 W Einspeisung).
+- Lastsprung nach oben: die Grenze folgt in ~2 s, die Einspeisung geht sofort auf 0 (voll Eigenverbrauch).
+- Lastabfall: die Einspeisung spitzt auf die aktuelle WR-Leistung und bleibt bei −300 W/s etwa **9 s über 800 W** (≈ 5 Wh) — das ist der bewusste Preis für die langsame Abwärtsfahrt.
+- Gegenprobe „schnell und ungefiltert" (0,5 s Zyklus, kein Tiefpass, keine Totzone): deutlicher **Grenzzyklus** (Grenze pendelt 350↔600 W bzw. 1900↔3000 W) und falscher Endwert. Totzone, Tiefpass und 2-s-Zyklus sind also notwendig, nicht kosmetisch.
+
+**Voraussetzung für die Regelung:** die Messung muss jünger als 3 s sein. Deshalb werden die vier Zählerwerte
+**auf dem Pi, an dem die Zähler hängen**, summiert und dort als **virtuelle Modbus-TCP-Register** bereitgestellt
+(Summe, Einzelwerte, Alter, Gültigkeitsmaske). Der PiAmWR liest dann nur noch einen Wert — kein MQTT-Zugang
+nötig, kein Publish-Takt-Problem, und HA kann denselben virtuellen Zähler parallel lesen.
