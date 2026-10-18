@@ -225,7 +225,7 @@ Es wird noch ein Service installiert und gestartet, welcher die wr Leistung auto
 Maximal 3 kw leistung des wr
 Maximal 800w Einspeisung (also Hausverbrauch+800 = wr Leistung)
 Das Script muss sich die sekündlichen Verbrauchswerte holen oder zugesendet bekommen
-Und falls 3 Sekunden lang keine Werte kommen wird die Leistung auf 800w gesetzt
+Und falls 3 Sekunden lang keine Werte kommen wird die Leistung auf 1000w gesetzt
 ---
 
 # Technische Beschreibung – PiAmWR (Raspberry Pi + Growatt 4200TL-XH)
@@ -256,7 +256,7 @@ Und falls 3 Sekunden lang keine Werte kommen wird die Leistung auf 800w gesetzt
   - Max. **3000 W** absolute Grenze
   - Max. **800 W** Einspeisung → `WR-Leistung = Hausverbrauch + 800 W`
 - Schreiben der Begrenzung an den Wechselrichter
-- Failsafe: Keine gültigen Werte für **3 Sekunden** → Leistung auf **800 W** setzen
+- Leerlauf/Failsafe: Keine gültigen Werte für **3 Sekunden** → Leistung auf **1000 W** setzen
 
 ---
 
@@ -341,7 +341,7 @@ percent = max(0, min(100, percent))
 
 ```
 IF (Zeit seit letztem gültigen Verbrauchswert > 3 Sekunden)
-    THEN setze Register 3 auf 19   # ≈ 800 W
+    THEN setze Register 3 auf 24   # ≈ 1000 W Leerlaufleistung
 ```
 
 ---
@@ -390,7 +390,7 @@ Der Dienst sollte als **systemd-Service** laufen und nach dem Boot automatisch s
 |------------------------------------|------------------------------------------------|
 | Max. WR-Leistung                   | 3000 W (hart im Code)                          |
 | Max. Einspeisung                   | 800 W (Hausverbrauch + 800)                    |
-| Kommunikationsausfall              | Nach 3 s → 800 W                               |
+| Kommunikationsausfall              | Nach 3 s → 1000 W (Leerlauf)                   |
 | SD-Karten-Verschleiß               | Swap aus, Logs im RAM, mbusd-Loglevel = 0      |
 | Serielle Schnittstelle             | Fester Symlink `/dev/ttyUSB_RS485`             |
 
