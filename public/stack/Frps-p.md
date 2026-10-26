@@ -1,15 +1,14 @@
 # frps auf rws8.mehrwert.icu (Multi-User mit frps-panel)
 
-frps v0.70.1 läuft auf dem VPS, gebunden auf **7001**. Auth läuft nicht über einen globalen `[auth]`-Token,
-sondern über das Server-Plugin [`frps-panel`](https://github.com/yhl452493373/frps-panel) (v2.0.0, benötigt frp >= v0.52):
-pro User ein eigener Token in `frps-tokens.toml`, Ports und Domains werden pro User limitiert, Verwaltung per Web-UI auf Port 7200.
+Auth läuft nicht über einen globalen `[auth]`-Token, sondern über das Server-Plugin [`frps-panel`](https://github.com/yhl452493373/frps-panel) (v2.0.0, benötigt frp >= v0.52):
+- pro User ein eigener Token in `frps-tokens.toml`
+- Ports und Domains werden pro User limitiert
+- Verwaltung per Web-UI auf Port 7200.
 
 Aktive User:
-
 - `hl` → Port 8082, Domain `hl.mehrwert.icu` (aktiv)
 - `rws8` → Port 8081, Domain `rws8.mehrwert.icu` (vorbereitet, noch deaktiviert)
 
-`/docker-vol/frps-p/compose.yaml` (deployed als Portainer-Stack, liegt auf dem VPS unter `/data/compose/10/docker-compose.yml`):
 ```yaml
 services:
   frps-p:
@@ -50,7 +49,6 @@ services:
     container_name: frps-panel
     restart: unless-stopped
     volumes:
-      # Image-CMD ist "/frps-panel/frps-panel -c /frps-panel/frps-panel.toml" -> Pfad muss /frps-panel sein, nicht /app
       - "/docker-vol/frps-p/frps-panel.toml:/frps-panel/frps-panel.toml:ro"
       - "/docker-vol/frps-p/frps-tokens.toml:/frps-panel/frps-tokens.toml"
     networks:
