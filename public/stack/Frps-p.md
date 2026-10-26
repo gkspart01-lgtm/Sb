@@ -9,7 +9,7 @@ Aktive User:
 - `hl` → Port 8082, Domain `hl.mehrwert.icu` (aktiv)
 - `rws8` → Port 8081, Domain `rws8.mehrwert.icu` (vorbereitet, noch deaktiviert)
 
-`/docker-vol/frps-p/compose.yaml`:
+`/docker-vol/frps-p/compose.yaml` (deployed als Portainer-Stack, liegt auf dem VPS unter `/data/compose/10/docker-compose.yml`):
 ```yaml
 services:
   frps-p:
@@ -50,8 +50,9 @@ services:
     container_name: frps-panel
     restart: unless-stopped
     volumes:
-      - "/docker-vol/frps-p/frps-panel.toml:/app/frps-panel.toml:ro"
-      - "/docker-vol/frps-p/frps-tokens.toml:/app/frps-tokens.toml"
+      # Image-CMD ist "/frps-panel/frps-panel -c /frps-panel/frps-panel.toml" -> Pfad muss /frps-panel sein, nicht /app
+      - "/docker-vol/frps-p/frps-panel.toml:/frps-panel/frps-panel.toml:ro"
+      - "/docker-vol/frps-p/frps-tokens.toml:/frps-panel/frps-tokens.toml"
     networks:
       - traefik-net
 
@@ -107,7 +108,7 @@ Hinweise zu dieser Konfiguration:
 - `dashboard_addr` / `dashboard_port` / `dashboard_user` / `dashboard_pwd` fehlen, deshalb bleiben die Server-Infos im Panel leer (optional nachtragen).
 - `enable = false` oder User entfernen wirkt erst mit Verzögerung; `ports` / `domains` werden nur bei `NewProxy` geprüft.
 - Router `hl-tunnel` nimmt den Host `hl.mehrwert.icu` an und schiebt ihn auf Port 8082 - also auf denselben Port, den der Client unten als `remotePort` belegt. Für jeden weiteren User ein eigenes Router/Service-Paar mit eigenem Port anlegen.
-- `miku114514/frps-panel-docker` ist ein Community-Image (das Projekt selbst liefert nur Release-Binaries); es erwartet `frps-panel.toml` und `frps-tokens.toml` unter `/app/`.
+- `miku114514/frps-panel-docker` ist ein Community-Image (das Projekt selbst liefert nur Release-Binaries). Es startet mit `-c /frps-panel/frps-panel.toml`, hat eine Default-Config einkompiliert und braucht die beiden TOMLs deshalb unter **`/frps-panel/`**.
 
 ## Subdomains: Zertifikat + Router
 
@@ -129,8 +130,10 @@ Zertifikat mit `DNS:*.rws8.mehrwert.icu, DNS:rws8.mehrwert.icu` -der Resolver ka
 echo | openssl s_client -connect whoami.hl.mehrwert.icu:443 -servername whoami.hl.mehrwert.icu 2>/dev/null \
   | openssl x509 -noout -subject -ext subjectAltName
 
-# Label-Änderungen greifen erst, wenn der Container neu erstellt wird
-cd /docker-vol/frps-p && docker compose up -d
+# Label-Änderungen greifen erst, wenn der Container neu erstellt wird.
+# Die Compose liegt nicht in /docker-vol/frps-p, sondern im Portainer-Stack:
+cd /data/compose/10 && docker compose up -d
+# oder: Portainer -> Stacks -> Stack aktualisieren (gleiche Datei)
 docker logs -f frps-p        # auf ACME-Fehler achten (DNS-01 / Provider-Credentials)
 ```
 
@@ -147,14 +150,41 @@ curl -k -o /dev/null -w "%{http_code}\n" https://whoami.hl.mehrwert.icu/    # Su
 
 ### "send Login request to plugin error"
 
-Kommt im `frps-p`-Log, wenn frps das Panel auf `frps-panel:7200` nicht erreicht. Prüfreihenfolge:
+Kommt im `frps-p`-Log, wenn frps das Panel auf `frps-panel:7200` nicht erreicht:
 
-- läuft der Panel-Container? `docker compose ps`, `docker logs frps-panel`
-- gleiche Netz? frps und Panel müssen beide auf `traefik-net` liegen (der `addr` ist ein Docker-DNS-Name)
-- Panel-Name im `frps.toml` == Servicename in der Compose (`frps-panel`) und Port == `plugin_port` (`7200`)
-- `frps-panel.toml` / `frps-tokens.toml` liegen im Container unter `/app/` (so mountet die Compose), die Tokens-Datei
-  muss **rw** gemountet sein
-- nach Änderung an `frps.toml` Container **neu erstellen**, ein `restart` reicht nicht
+```
+send Login request to plugin [frps-panel] error: Post "http://frps-panel:7200/handler?op=Login&version=0.1.0":
+dial tcp 172.20.0.7:7200: connect: connection refused
+```
+
+Die DNS-Auflösung klappt in diesem Fall schon (die IP steht ja im Log), es scheitert am Port. Ursache war hier
+der **Config-Pfad des Images**: `miku114514/frps-panel-docker` startet mit
+`/frps-panel/frps-panel -c /frps-panel/frps-panel.toml` und hat eine eigene Default-Config einkompiliert
+(`plugin_addr = "127.0.0.1"`). Wird `frps-panel.toml` nach `/app/` gemountet, wird sie ignoriert - das Panel
+lauscht dann nur auf `127.0.0.1` **innerhalb seines Containers** und ist für `frps-p` nicht erreichbar.
+Erkennbar an genau einer Logzeile beim Start:
+
+```bash
+docker logs frps-panel | head -3
+# falsch : HTTP server listen on 127.0.0.1:7200     -> Default-Config aktiv, Mount greift nicht
+# richtig: HTTP server listen on [::]:7200          -> plugin_addr = "0.0.0.0" wurde gelesen
+```
+
+Prüfreihenfolge:
+
+- Mounts auf `/frps-panel/...` (nicht `/app/...`), Tokens-Datei **rw** (das Panel schreibt dort User rein)
+- `/frps-panel` ist im Image ein `VOLUME` mit Binary und `assets/` - deshalb **einzelne Dateien** mounten, nie das
+  ganze Verzeichnis (sonst verschwinden Binary und Sprachdateien, das Panel startet nicht mehr)
+- gleiches Netz: frps und Panel beide auf `traefik-net`, `addr` in `frps.toml` == Servicename (`frps-panel`), Port == `plugin_port` (`7200`)
+- nach Änderung an `frps.toml` oder den Mounts Container **neu erstellen**, ein `restart` reicht nicht
+
+Gegenprobe nach dem Fix:
+
+```bash
+docker logs --tail=3 frps-panel                                   # [::]:7200
+docker exec frps-p sh -c 'wget -qO- "http://frps-panel:7200/handler?op=Login&version=0.1.0" >/dev/null && echo reachable'
+ss -tlnp | grep 8082                                             # lauscht erst, wenn ein Client getunnelt hat
+```
 
 Hinweis: der alte Stack auf Port `7000` (frps + Router `rws8-tunnel` → 8081) läuft parallel weiter, solange `rws8`
 nicht auf `frps-p` umgezogen ist.
