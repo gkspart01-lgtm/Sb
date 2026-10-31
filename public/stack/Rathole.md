@@ -11,8 +11,8 @@ Aufteilung:
 - **hl** → Port 8082, Domain `hl.mehrwert.icu` (aktiv)
 - **rws8** → Port 8081, Domain `rws8.mehrwert.icu` (vorbereitet, auskommentiert)
 
-Docker-Image: `rapiz1/rathole:v0.5.0` (12,5 MB, Rust, `ENTRYPOINT ./rathole`, läuft als uid 1000).
-Deshalb muss die Config für andere lesbar sein: `chmod 644 server.toml`.
+Docker-Image: `rapiz1/rathole:v0.5.0` (12,5 MB, Rust, `ENTRYPOINT ./rathole`, läuft als **uid 1000**).
+Die Config muss deshalb für uid 1000 lesbar sein: `chown 1000:1000 server.toml && chmod 600 server.toml`.
 
 `/docker-vol/rathole/compose.yaml`:
 ```yaml
@@ -89,6 +89,56 @@ bind_addr = "0.0.0.0:8082"       # nur intern, kein ports:-Eintrag in der Compos
 # token = "TOKEN_FUER_RWS8"
 # bind_addr = "0.0.0.0:8081"
 ```
+
+## Erststart auf dem VPS
+
+Reihenfolge ist wichtig: Keypair, Datei anlegen, Rechte, dann Container starten.
+
+```bash
+# 1) Noise-Keypair erzeugen (einmalig, kein Netzwerkzugriff)
+docker run --rm rapiz1/rathole:v0.5.0 --genkey
+# -> "Private Key" notieren (bleibt auf dem VPS), "Public Key" geht in die Client-Config
+```
+
+```bash
+# 2) Container anhalten und Verzeichnis-Falle prüfen
+docker stop rathole
+ls -la /docker-vol/rathole/
+
+# WICHTIG: existiert die Datei beim ersten Start noch nicht, legt Docker dort ein
+# VERZEICHNIS namens server.toml an. Dann zuerst entfernen:
+rm -rf /docker-vol/rathole/server.toml
+mkdir -p /docker-vol/rathole
+```
+
+```bash
+# 3) Config schreiben
+nano /docker-vol/rathole/server.toml      # Inhalt siehe oben, Keys/Token eintragen
+```
+
+```bash
+# 4) Rechte setzen - der Container läuft als uid 1000, root:root 600 wäre "permission denied"
+chown 1000:1000 /docker-vol/rathole/server.toml
+chmod 600 /docker-vol/rathole/server.toml
+```
+
+```bash
+# 5) starten und Log ansehen
+docker start rathole
+docker logs --tail=20 rathole
+# erwartet: Startmeldung mit 8443, keine "permission denied" / "address already in use"
+```
+
+```bash
+# 6) Kontrolle
+ss -tlnp | grep 8443                                    # Control-Port auf dem Host
+nsenter -t "$(docker inspect -f '{{.State.Pid}}' rathole)" -n ss -tlnp | grep -E '8443|8082'
+ufw status | grep 8443                                  # falls UFW aktiv: allow 8443/tcp
+```
+
+`8082` erscheint erst, wenn der Client den Service registriert hat - fehlt der Eintrag vor dem Client-Start, ist das normal.
+
+Nach jeder Config-Änderung: `docker restart rathole` (die Datei wird nur beim Start gelesen).
 
 # Client (LAN)
 
