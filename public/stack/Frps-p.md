@@ -86,14 +86,14 @@ tls_mode = false
 # [tokens.rws8]
 # user = "rws8"
 # token = "TOKEN_FUER_RWS8"
-# ports = [8081]
+# ports = ["8081"]
 # domains = ["rws8.mehrwert.icu"]
 # enable = true
 
 [tokens.hl]
 user = "hl"
 token = "TOKEN_FUER_HL"
-ports = [8082]
+ports = ["8082"]
 domains = ["hl.mehrwert.icu"]
 enable = true
 ```
