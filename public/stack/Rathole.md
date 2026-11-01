@@ -21,11 +21,13 @@ services:
     image: rapiz1/rathole:v0.5.0
     container_name: rathole
     restart: unless-stopped
-    command: ["--server", "/app/config/server.toml"]
+    # Config liegt direkt unter /app: das Image hat kein /app/config, ein File-Mount dorthin
+    # scheitert mit "not a directory" (runc legt fehlende Elternverzeichnisse nicht an)
+    command: ["--server", "/app/server.toml"]
     environment:
       - "RUST_LOG=info"
     volumes:
-      - "/docker-vol/rathole/server.toml:/app/config/server.toml:ro"
+      - "/docker-vol/rathole/server.toml:/app/server.toml:ro"
     ports:
       - "8443:8443"          # Control-Channel (muss von außen erreichbar sein)
     networks:
@@ -137,6 +139,12 @@ ufw status | grep 8443                                  # falls UFW aktiv: allow
 ```
 
 `8082` erscheint erst, wenn der Client den Service registriert hat - fehlt der Eintrag vor dem Client-Start, ist das normal.
+
+Zwei Fehlerbilder beim Mount, beide schon gesehen:
+
+- `Is a directory (os error 21)` im Container-Log = am Host-Pfad liegt ein **Verzeichnis** statt einer Datei; Docker legt es an, wenn die Datei beim ersten Start fehlt. `rm -rf` und Datei neu anlegen.
+- `not a directory: Are you trying to mount a directory onto a file` = das Ziel im Image hat kein Elternverzeichnis. Das Image enthält nur `/app` und `/app/rathole`, **kein** `/app/config`. Deshalb entweder nach `/app/server.toml` mounten (so wie oben) oder das ganze Verzeichnis mounten:
+  `- "/docker-vol/rathole:/app/config:ro"` bei unverändertem `command`.
 
 Nach jeder Config-Änderung: `docker restart rathole` (die Datei wird nur beim Start gelesen).
 
